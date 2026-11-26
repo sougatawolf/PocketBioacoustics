@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pine_deep">#FF0D1B21</color>
+    <color name="pine_teal">#FF204D5D</color>
+    <color name="sage_teal">#FF53898E</color>
+    <color name="coral_red">#FFE85A4B</color>
+    <color name="coral_salmon">#FFF78473</color>
+    <color name="peach_sand">#FFF9D5B4</color>
+    <color name="warm_ivory">#FFFAF3EC</color>
+</resources>

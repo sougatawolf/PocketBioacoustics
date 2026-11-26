@@ -1,0 +1,6 @@
+{
+  "name": "PocketBioacoustics",
+  "description": "PocketBioacoustics continuous segmented WAV audio recorder by Dr. Sougata Sadhukhan with hardware sample-rate probing and time-window scheduling.",
+  "requestFramePermissions": ["RECORD_AUDIO"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

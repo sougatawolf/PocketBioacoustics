@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">PocketBioacoustics</string>
+    <string name="author_attribution">by Dr. Sougata Sadhukhan</string>
+    <string name="nav_studio">Studio</string>
+    <string name="nav_archive">Recordings</string>
+    <string name="status_standby">STANDBY</string>
+    <string name="status_recording">RECORDING</string>
+    <string name="status_paused">PAUSED</string>
+    <string name="action_record">Start recording</string>
+    <string name="action_stop">Stop recording</string>
+    <string name="action_pause">Pause recording</string>
+    <string name="action_resume">Resume recording</string>
+    <string name="action_split">Split segment now</string>
+    <string name="permission_mic_title">Microphone Access Required</string>
+    <string name="permission_mic_body">PocketBioacoustics needs microphone permission to capture lossless FLAC, ALAC, WAV, and AIFF audio segments.</string>
+    <string name="permission_grant">Grant Microphone Access</string>
+    <string name="notification_channel_name">Continuous Audio Recording</string>
+    <string name="notification_channel_desc">Shows active recording timer and segment controls</string>
+    <string name="empty_archive_title">No Recordings Yet</string>
+    <string name="empty_archive_body">Start a continuous session in Studio. Segments auto-save as lossless FLAC, ALAC, WAV, or AIFF files at your chosen interval.</string>
+</resources>
