@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RadioButtonChecked
 import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -110,7 +111,9 @@ import com.example.audio.StorageUsageEstimate
 import com.example.audio.VisualizerMode
 import com.example.data.RecorderSettings
 import com.example.data.RecordingSchedule
+import com.example.ui.UpdateUiState
 import com.example.ui.components.AcousticTriggerCard
+import com.example.ui.components.AppUpdatesCard
 import com.example.ui.components.AudioVisualizerPanel
 import com.example.ui.components.BatteryIconGraphic
 import com.example.ui.components.BatterySettingsCard
@@ -121,6 +124,7 @@ import com.example.ui.components.LowCutFilterCard
 import com.example.ui.components.RecordingDurationCard
 import com.example.ui.components.SampleRateSelectorCard
 import com.example.ui.components.ScheduleSettingsCard
+import com.example.update.UpdateCheckFrequency
 import com.example.util.Formatters
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -153,6 +157,11 @@ fun RecorderScreen(
     onScheduleChanged: (RecordingSchedule) -> Unit,
     onBatteryProtectionChanged: (Boolean) -> Unit,
     onBatteryThresholdChanged: (Int) -> Unit,
+    updateUiState: UpdateUiState,
+    onSaveGithubRepo: (String) -> Unit,
+    onUpdateFrequencyChanged: (UpdateCheckFrequency) -> Unit,
+    onCheckUpdatesNow: () -> Unit,
+    onOpenUpdateDialog: () -> Unit,
     onOpenArchive: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -303,6 +312,59 @@ fun RecorderScreen(
                 recordingState = recordingState,
                 batteryUsageEstimate = batteryUsageEstimate
             )
+
+            val pendingUpdate = updateUiState.availableUpdate
+            AnimatedVisibility(visible = isIdle && pendingUpdate != null) {
+                if (pendingUpdate != null) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .minimumInteractiveComponentSize()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable(onClick = onOpenUpdateDialog)
+                            .testTag("studio_update_available_banner")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.SystemUpdate,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Update v${pendingUpdate.versionName} available on GitHub",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Text(
+                                text = "Review",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
+                }
+            }
 
             // Top Lossless Format Selector (FLAC, ALAC, WAV, AIFF) + GPS Selector beside it
             FormatAndGpsSelectorBar(
@@ -498,6 +560,19 @@ fun RecorderScreen(
                 intervalSeconds = recordingState.targetRecordingDurationSeconds,
                 isRecordingActive = !isIdle,
                 onQualitySelected = onQualityChanged
+            )
+
+            // GitHub Releases APK Update Checker Card
+            AppUpdatesCard(
+                githubRepo = settings.githubUpdateRepo,
+                frequency = settings.updateCheckFrequency,
+                lastCheckMs = settings.lastUpdateCheckMs,
+                updateUiState = updateUiState,
+                isRecordingActive = !isIdle,
+                onSaveRepo = onSaveGithubRepo,
+                onFrequencySelected = onUpdateFrequencyChanged,
+                onCheckNow = onCheckUpdatesNow,
+                onViewUpdatePopup = onOpenUpdateDialog
             )
 
             // Latest Completed Segment Toast Strip

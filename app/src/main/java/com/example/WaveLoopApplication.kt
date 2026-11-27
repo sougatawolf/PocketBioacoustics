@@ -9,6 +9,7 @@ import com.example.audio.RecordingEngine
 import com.example.audio.StorageMonitor
 import com.example.data.RecorderPreferencesRepository
 import com.example.data.RecordingRepository
+import com.example.update.GitHubUpdateChecker
 
 class WaveLoopApplication : Application() {
 
@@ -36,6 +37,9 @@ class WaveLoopApplication : Application() {
     lateinit var playbackManager: AudioPlaybackManager
         private set
 
+    lateinit var updateChecker: GitHubUpdateChecker
+        private set
+
     override fun onCreate() {
         super.onCreate()
         preferencesRepository = RecorderPreferencesRepository(this)
@@ -46,5 +50,6 @@ class WaveLoopApplication : Application() {
         gpsTagManager = GpsTagManager(this)
         recordingEngine = RecordingEngine(recordingRepository, batteryMonitor, gpsTagManager)
         playbackManager = AudioPlaybackManager()
+        updateChecker = GitHubUpdateChecker(this)
     }
 }

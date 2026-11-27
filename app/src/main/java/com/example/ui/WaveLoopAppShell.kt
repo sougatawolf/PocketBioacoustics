@@ -1,5 +1,7 @@
 package com.example.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -43,6 +45,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.R
+import com.example.audio.RecordingStatus
+import com.example.ui.components.UpdateAvailableDialog
 import com.example.ui.screens.ArchiveScreen
 import com.example.ui.screens.RecorderScreen
 
@@ -67,6 +71,7 @@ fun WaveLoopAppShell(
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val playbackInspectorState by viewModel.playbackInspectorState.collectAsStateWithLifecycle()
     val transientMessage by viewModel.transientMessage.collectAsStateWithLifecycle()
+    val updateUiState by viewModel.updateUiState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -241,6 +246,11 @@ fun WaveLoopAppShell(
                                 onScheduleChanged = viewModel::setSchedule,
                                 onBatteryProtectionChanged = viewModel::setBatteryProtectionEnabled,
                                 onBatteryThresholdChanged = viewModel::setMinBatteryThresholdPercent,
+                                updateUiState = updateUiState,
+                                onSaveGithubRepo = viewModel::saveGithubUpdateRepo,
+                                onUpdateFrequencyChanged = viewModel::setUpdateCheckFrequency,
+                                onCheckUpdatesNow = viewModel::checkForUpdatesManual,
+                                onOpenUpdateDialog = viewModel::openUpdateDialog,
                                 onOpenArchive = { navigateTo(ROUTE_ARCHIVE) }
                             )
                         }
@@ -267,6 +277,33 @@ fun WaveLoopAppShell(
                     }
                 }
             }
+        }
+
+        val availableUpdate = updateUiState.availableUpdate
+        if (updateUiState.showUpdateDialog &&
+            availableUpdate != null &&
+            recordingState.status == RecordingStatus.IDLE
+        ) {
+            UpdateAvailableDialog(
+                update = availableUpdate,
+                installedVersion = updateUiState.installedVersion,
+                onConfirmYesUpdate = {
+                    val targetUrl = availableUpdate.preferredDownloadUrl
+                    viewModel.dismissUpdateDialog()
+                    if (targetUrl.isBlank()) {
+                        viewModel.showMessage("No GitHub release download URL was found.")
+                    } else {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            viewModel.showMessage("Could not open browser for APK download.")
+                        }
+                    }
+                },
+                onLater = viewModel::dismissUpdateDialog,
+                onSkipVersion = { viewModel.skipUpdateVersion(availableUpdate.tagName) }
+            )
         }
     }
 }

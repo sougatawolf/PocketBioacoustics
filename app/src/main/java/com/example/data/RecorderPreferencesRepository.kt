@@ -7,14 +7,17 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.R
 import com.example.audio.AcousticTriggerConfig
 import com.example.audio.AudioQuality
 import com.example.audio.GpsTagMode
 import com.example.audio.LowCutFilter
 import com.example.audio.RecordingFileFormat
 import com.example.audio.VisualizerMode
+import com.example.update.UpdateCheckFrequency
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -34,7 +37,11 @@ data class RecorderSettings(
     val lowCutFilterHz: Int = DEFAULT_LOW_CUT_FILTER_HZ,
     val acousticTrigger: AcousticTriggerConfig = AcousticTriggerConfig(),
     val batteryProtectionEnabled: Boolean = true,
-    val minBatteryThresholdPercent: Int = DEFAULT_BATTERY_THRESHOLD_PERCENT
+    val minBatteryThresholdPercent: Int = DEFAULT_BATTERY_THRESHOLD_PERCENT,
+    val githubUpdateRepo: String = "",
+    val updateCheckFrequency: UpdateCheckFrequency = UpdateCheckFrequency.WEEKLY,
+    val skippedUpdateTag: String = "",
+    val lastUpdateCheckMs: Long = 0L
 ) {
     val totalCycleSeconds: Int
         get() = if (continuousNoGap) {
@@ -96,6 +103,11 @@ class RecorderPreferencesRepository(private val context: Context) {
         val TRIGGER_AMPLITUDE_DB = floatPreferencesKey("trigger_amplitude_db")
         val TRIGGER_PRE_RECORD_SECONDS = intPreferencesKey("trigger_pre_record_seconds")
         val TRIGGER_AUTO_STOP_SILENCE_MINUTES = intPreferencesKey("trigger_auto_stop_silence_minutes")
+
+        val GITHUB_UPDATE_REPO = stringPreferencesKey("github_update_repo")
+        val UPDATE_CHECK_FREQUENCY = stringPreferencesKey("update_check_frequency")
+        val SKIPPED_UPDATE_TAG = stringPreferencesKey("skipped_update_tag")
+        val LAST_UPDATE_CHECK_MS = longPreferencesKey("last_update_check_ms")
     }
 
     val settingsFlow: Flow<RecorderSettings> = context.recorderDataStore.data.map { prefs ->
@@ -177,6 +189,14 @@ class RecorderPreferencesRepository(private val context: Context) {
 
         val effectiveContinuousNoGap = continuousNoGap || triggerConfig.enabled
 
+        val defaultGithubRepo = context.getString(R.string.default_github_update_repo).trim()
+        val githubUpdateRepo = prefs[Keys.GITHUB_UPDATE_REPO] ?: defaultGithubRepo
+        val updateCheckFrequency = prefs[Keys.UPDATE_CHECK_FREQUENCY]?.let { name ->
+            UpdateCheckFrequency.entries.firstOrNull { it.name == name }
+        } ?: UpdateCheckFrequency.WEEKLY
+        val skippedUpdateTag = prefs[Keys.SKIPPED_UPDATE_TAG] ?: ""
+        val lastUpdateCheckMs = prefs[Keys.LAST_UPDATE_CHECK_MS] ?: 0L
+
         RecorderSettings(
             intervalSeconds = clampedInterval,
             recordingDurationSeconds = clampedDuration,
@@ -189,7 +209,11 @@ class RecorderPreferencesRepository(private val context: Context) {
             lowCutFilterHz = lowCutFilterHz,
             acousticTrigger = triggerConfig,
             batteryProtectionEnabled = batteryProtectionEnabled,
-            minBatteryThresholdPercent = minBatteryThreshold
+            minBatteryThresholdPercent = minBatteryThreshold,
+            githubUpdateRepo = githubUpdateRepo,
+            updateCheckFrequency = updateCheckFrequency,
+            skippedUpdateTag = skippedUpdateTag,
+            lastUpdateCheckMs = lastUpdateCheckMs
         )
     }
 
@@ -292,6 +316,30 @@ class RecorderPreferencesRepository(private val context: Context) {
             if (config.enabled) {
                 prefs[Keys.CONTINUOUS_NO_GAP] = true
             }
+        }
+    }
+
+    suspend fun setGithubUpdateRepo(repoSlug: String) {
+        context.recorderDataStore.edit { prefs ->
+            prefs[Keys.GITHUB_UPDATE_REPO] = repoSlug.trim()
+        }
+    }
+
+    suspend fun setUpdateCheckFrequency(frequency: UpdateCheckFrequency) {
+        context.recorderDataStore.edit { prefs ->
+            prefs[Keys.UPDATE_CHECK_FREQUENCY] = frequency.name
+        }
+    }
+
+    suspend fun setSkippedUpdateTag(tag: String) {
+        context.recorderDataStore.edit { prefs ->
+            prefs[Keys.SKIPPED_UPDATE_TAG] = tag.trim()
+        }
+    }
+
+    suspend fun setLastUpdateCheckMs(timestampMs: Long) {
+        context.recorderDataStore.edit { prefs ->
+            prefs[Keys.LAST_UPDATE_CHECK_MS] = timestampMs
         }
     }
 }

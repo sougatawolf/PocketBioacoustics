@@ -32,6 +32,8 @@ import com.example.audio.WavHeader
 import com.example.data.RecorderSettings
 import com.example.data.RecordingSchedule
 import com.example.data.ScheduleMode
+import com.example.update.GitHubReleaseParser
+import com.example.update.UpdateCheckFrequency
 import com.example.util.Formatters
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -871,6 +873,75 @@ class WavRecorderUnitTest {
         )
         val fullSpectrumResult = AcousticTriggerEvaluator.evaluate(loud500Hz, loud500Hz.size, sampleRate, entireSpectrum)
         assertTrue("500 Hz tone should trigger in Entire Spectrum mode", fullSpectrumResult.isTriggered)
+    }
+
+    @Test
+    fun gitHubReleaseParser_normalizesReposComparesSemVerAndGatesWeeklyCooldown() {
+        assertEquals(
+            "drsougata/PocketBioacoustics",
+            GitHubReleaseParser.normalizeRepoSlug("https://github.com/drsougata/PocketBioacoustics.git")
+        )
+        assertEquals(
+            "drsougata/PocketBioacoustics",
+            GitHubReleaseParser.normalizeRepoSlug("github.com/drsougata/PocketBioacoustics/releases")
+        )
+        assertEquals(
+            "drsougata/PocketBioacoustics",
+            GitHubReleaseParser.normalizeRepoSlug("  drsougata/PocketBioacoustics  ")
+        )
+        assertEquals(null, GitHubReleaseParser.normalizeRepoSlug("not-a-repo"))
+
+        assertTrue(GitHubReleaseParser.isRemoteVersionNewer("1.0", "v1.0.1"))
+        assertTrue(GitHubReleaseParser.isRemoteVersionNewer("1.2.0", "v1.10.0"))
+        assertTrue(GitHubReleaseParser.isRemoteVersionNewer("1.9.9", "2.0"))
+        assertFalse(GitHubReleaseParser.isRemoteVersionNewer("1.0", "v1.0"))
+        assertFalse(GitHubReleaseParser.isRemoteVersionNewer("1.0.0", "v1.0.0-beta"))
+
+        val sevenDaysMs = UpdateCheckFrequency.WEEKLY.intervalMs
+        val now = 1_750_000_000_000L
+        assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.WEEKLY, 0L, now, force = false))
+        assertFalse(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.WEEKLY, now - sevenDaysMs + 1000L, now, force = false))
+        assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.WEEKLY, now - sevenDaysMs, now, force = false))
+        assertFalse(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.MANUAL_ONLY, 0L, now, force = false))
+        assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.MANUAL_ONLY, now, now, force = true))
+    }
+
+    @Test
+    fun gitHubReleaseParser_extractsApkAssetAndCategorizesFeaturesAndFixes() {
+        val sampleJson = """
+            {
+              "tag_name": "v1.2.0",
+              "name": "Field Trigger & GPS Update",
+              "draft": false,
+              "html_url": "https://github.com/org/app/releases/tag/v1.2.0",
+              "published_at": "2026-11-26T10:00:00Z",
+              "body": "## New Features\n- Added **Acoustic Trigger** with pre-recording buffer\n- Added 320 kHz bat spectrogram zoom\n\n## Bug Fixes\n- Fixed FLAC tail flush on short recordings\n- Corrected low-battery pause resume state",
+              "assets": [
+                {
+                  "name": "app-debug.apk",
+                  "browser_download_url": "https://github.com/org/app/releases/download/v1.2.0/app-debug.apk"
+                },
+                {
+                  "name": "PocketBioacoustics-v1.2.0-release.apk",
+                  "browser_download_url": "https://github.com/org/app/releases/download/v1.2.0/PocketBioacoustics-v1.2.0-release.apk"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val parsed = GitHubReleaseParser.parseLatestReleaseJson(sampleJson)
+        assertNotNull(parsed)
+        parsed!!
+        assertEquals("v1.2.0", parsed.tagName)
+        assertEquals("1.2.0", parsed.versionName)
+        assertEquals(
+            "https://github.com/org/app/releases/download/v1.2.0/PocketBioacoustics-v1.2.0-release.apk",
+            parsed.apkDownloadUrl
+        )
+        assertEquals(2, parsed.parsedNotes.features.size)
+        assertTrue(parsed.parsedNotes.features[0].contains("Acoustic Trigger"))
+        assertEquals(2, parsed.parsedNotes.corrections.size)
+        assertTrue(parsed.parsedNotes.corrections[0].contains("FLAC tail flush"))
     }
 }
 

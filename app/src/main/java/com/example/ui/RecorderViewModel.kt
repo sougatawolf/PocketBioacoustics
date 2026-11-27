@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.WaveLoopApplication
 import com.example.audio.AcousticTriggerConfig
 import com.example.audio.AudioCapabilities
@@ -34,6 +35,11 @@ import com.example.data.RecordingFile
 import com.example.data.RecordingRepository
 import com.example.data.RecordingSchedule
 import com.example.service.RecordingService
+import com.example.update.AppUpdateInfo
+import com.example.update.GitHubReleaseParser
+import com.example.update.GitHubUpdateChecker
+import com.example.update.UpdateCheckFrequency
+import com.example.update.UpdateCheckResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -82,6 +88,16 @@ private data class VisualizationMerge(
     val timeRange: ClosedFloatingPointRange<Float>
 )
 
+data class UpdateUiState(
+    val installedVersion: String = BuildConfig.VERSION_NAME,
+    val installedVersionCode: Int = BuildConfig.VERSION_CODE,
+    val isChecking: Boolean = false,
+    val availableUpdate: AppUpdateInfo? = null,
+    val showUpdateDialog: Boolean = false,
+    val statusMessage: String? = null,
+    val lastError: String? = null
+)
+
 class RecorderViewModel(
     private val preferencesRepository: RecorderPreferencesRepository,
     private val recordingRepository: RecordingRepository,
@@ -89,7 +105,8 @@ class RecorderViewModel(
     private val batteryMonitor: BatteryMonitor,
     private val storageMonitor: StorageMonitor,
     private val recordingEngine: RecordingEngine,
-    private val playbackManager: AudioPlaybackManager
+    private val playbackManager: AudioPlaybackManager,
+    private val updateChecker: GitHubUpdateChecker
 ) : ViewModel() {
 
     val recordingState: StateFlow<RecordingState> = recordingEngine.state
@@ -187,6 +204,10 @@ class RecorderViewModel(
     private val sortOrder = MutableStateFlow(ArchiveSortOrder.NEWEST)
     private val _transientMessage = MutableStateFlow<String?>(null)
     val transientMessage: StateFlow<String?> = _transientMessage
+
+    private val _updateUiState = MutableStateFlow(UpdateUiState())
+    val updateUiState: StateFlow<UpdateUiState> = _updateUiState
+    private var hasRunLaunchUpdateCheck = false
 
     private val inspectedFilePath = MutableStateFlow<String?>(null)
     private val previewPositionMs = MutableStateFlow(0L)
@@ -289,6 +310,17 @@ class RecorderViewModel(
         viewModelScope.launch {
             val initialSettings = preferencesRepository.settingsFlow.first()
             recordingEngine.syncIdleSettings(initialSettings)
+            runLaunchUpdateCheckOnce(initialSettings)
+        }
+        viewModelScope.launch {
+            recordingEngine.state
+                .map { it.status != RecordingStatus.IDLE }
+                .distinctUntilChanged()
+                .collect { active ->
+                    if (active && _updateUiState.value.showUpdateDialog) {
+                        _updateUiState.value = _updateUiState.value.copy(showUpdateDialog = false)
+                    }
+                }
         }
         viewModelScope.launch {
             recordingRepository.recordings.collect {
@@ -683,6 +715,196 @@ class RecorderViewModel(
         sortOrder.value = order
     }
 
+    private fun isSessionActiveForUpdate(): Boolean {
+        return recordingEngine.state.value.status != RecordingStatus.IDLE
+    }
+
+    private suspend fun runLaunchUpdateCheckOnce(initialSettings: RecorderSettings) {
+        if (hasRunLaunchUpdateCheck) return
+        hasRunLaunchUpdateCheck = true
+        if (isSessionActiveForUpdate()) return
+        if (initialSettings.githubUpdateRepo.isBlank() ||
+            initialSettings.updateCheckFrequency == UpdateCheckFrequency.MANUAL_ONLY
+        ) {
+            return
+        }
+
+        when (
+            val result = updateChecker.checkLatestRelease(
+                repoInput = initialSettings.githubUpdateRepo,
+                installedVersion = BuildConfig.VERSION_NAME,
+                skippedTag = initialSettings.skippedUpdateTag,
+                frequency = initialSettings.updateCheckFrequency,
+                lastCheckMs = initialSettings.lastUpdateCheckMs,
+                force = false
+            )
+        ) {
+            is UpdateCheckResult.UpdateAvailable -> {
+                preferencesRepository.setLastUpdateCheckMs(result.checkedAtMs)
+                if (!result.isSkipped) {
+                    val canShowPopup = !isSessionActiveForUpdate()
+                    _updateUiState.value = _updateUiState.value.copy(
+                        availableUpdate = result.update,
+                        showUpdateDialog = canShowPopup,
+                        statusMessage = "Update v${result.update.versionName} available",
+                        lastError = null
+                    )
+                }
+            }
+
+            is UpdateCheckResult.UpToDate -> {
+                preferencesRepository.setLastUpdateCheckMs(result.checkedAtMs)
+            }
+
+            UpdateCheckResult.NoInternet,
+            UpdateCheckResult.CooldownNotElapsed,
+            UpdateCheckResult.NotConfigured,
+            is UpdateCheckResult.Error -> Unit
+        }
+    }
+
+    fun checkForUpdatesManual() {
+        if (isSessionActiveForUpdate()) {
+            _transientMessage.value = "Stop recording before checking for updates."
+            return
+        }
+        viewModelScope.launch {
+            val currentSettings = preferencesRepository.settingsFlow.first()
+            if (currentSettings.githubUpdateRepo.isBlank()) {
+                _updateUiState.value = _updateUiState.value.copy(
+                    lastError = "Enter your GitHub repository (owner/repo) first.",
+                    statusMessage = null
+                )
+                return@launch
+            }
+            _updateUiState.value = _updateUiState.value.copy(
+                isChecking = true,
+                lastError = null,
+                statusMessage = null
+            )
+            when (
+                val result = updateChecker.checkLatestRelease(
+                    repoInput = currentSettings.githubUpdateRepo,
+                    installedVersion = BuildConfig.VERSION_NAME,
+                    skippedTag = currentSettings.skippedUpdateTag,
+                    frequency = currentSettings.updateCheckFrequency,
+                    lastCheckMs = currentSettings.lastUpdateCheckMs,
+                    force = true
+                )
+            ) {
+                is UpdateCheckResult.UpdateAvailable -> {
+                    preferencesRepository.setLastUpdateCheckMs(result.checkedAtMs)
+                    val canShowPopup = !isSessionActiveForUpdate()
+                    _updateUiState.value = _updateUiState.value.copy(
+                        isChecking = false,
+                        availableUpdate = result.update,
+                        showUpdateDialog = canShowPopup,
+                        statusMessage = "Update v${result.update.versionName} available",
+                        lastError = null
+                    )
+                }
+
+                is UpdateCheckResult.UpToDate -> {
+                    preferencesRepository.setLastUpdateCheckMs(result.checkedAtMs)
+                    _updateUiState.value = _updateUiState.value.copy(
+                        isChecking = false,
+                        availableUpdate = null,
+                        showUpdateDialog = false,
+                        statusMessage = "You're on the latest version (v${result.currentVersion}).",
+                        lastError = null
+                    )
+                }
+
+                UpdateCheckResult.NoInternet -> {
+                    _updateUiState.value = _updateUiState.value.copy(
+                        isChecking = false,
+                        lastError = "No active internet connection.",
+                        statusMessage = null
+                    )
+                }
+
+                UpdateCheckResult.NotConfigured -> {
+                    _updateUiState.value = _updateUiState.value.copy(
+                        isChecking = false,
+                        lastError = "Enter a valid GitHub repository like owner/repo.",
+                        statusMessage = null
+                    )
+                }
+
+                UpdateCheckResult.CooldownNotElapsed -> {
+                    _updateUiState.value = _updateUiState.value.copy(isChecking = false)
+                }
+
+                is UpdateCheckResult.Error -> {
+                    _updateUiState.value = _updateUiState.value.copy(
+                        isChecking = false,
+                        lastError = result.message,
+                        statusMessage = null
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveGithubUpdateRepo(rawRepo: String) {
+        viewModelScope.launch {
+            if (rawRepo.isBlank()) {
+                preferencesRepository.setGithubUpdateRepo("")
+                _updateUiState.value = _updateUiState.value.copy(
+                    availableUpdate = null,
+                    showUpdateDialog = false,
+                    statusMessage = "GitHub update repository cleared.",
+                    lastError = null
+                )
+                return@launch
+            }
+            val normalized = GitHubReleaseParser.normalizeRepoSlug(rawRepo)
+            if (normalized == null) {
+                _updateUiState.value = _updateUiState.value.copy(
+                    lastError = "Use owner/repo or a full https://github.com/owner/repo URL.",
+                    statusMessage = null
+                )
+                return@launch
+            }
+            preferencesRepository.setGithubUpdateRepo(normalized)
+            _updateUiState.value = _updateUiState.value.copy(
+                lastError = null,
+                statusMessage = "Saved GitHub repo: $normalized"
+            )
+        }
+    }
+
+    fun setUpdateCheckFrequency(frequency: UpdateCheckFrequency) {
+        viewModelScope.launch {
+            preferencesRepository.setUpdateCheckFrequency(frequency)
+        }
+    }
+
+    fun dismissUpdateDialog() {
+        _updateUiState.value = _updateUiState.value.copy(showUpdateDialog = false)
+    }
+
+    fun openUpdateDialog() {
+        if (isSessionActiveForUpdate()) {
+            _transientMessage.value = "Stop recording before opening the update installer."
+            return
+        }
+        if (_updateUiState.value.availableUpdate != null) {
+            _updateUiState.value = _updateUiState.value.copy(showUpdateDialog = true)
+        }
+    }
+
+    fun skipUpdateVersion(tagName: String) {
+        viewModelScope.launch {
+            preferencesRepository.setSkippedUpdateTag(tagName)
+        }
+        _updateUiState.value = _updateUiState.value.copy(
+            showUpdateDialog = false,
+            availableUpdate = null,
+            statusMessage = "Skipped $tagName"
+        )
+    }
+
     fun clearTransientMessage() {
         _transientMessage.value = null
         recordingEngine.clearError()
@@ -699,7 +921,8 @@ class RecorderViewModel(
                 batteryMonitor = app.batteryMonitor,
                 storageMonitor = app.storageMonitor,
                 recordingEngine = app.recordingEngine,
-                playbackManager = app.playbackManager
+                playbackManager = app.playbackManager,
+                updateChecker = app.updateChecker
             ) as T
         }
     }
