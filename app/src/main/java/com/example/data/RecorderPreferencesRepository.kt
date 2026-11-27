@@ -38,8 +38,8 @@ data class RecorderSettings(
     val acousticTrigger: AcousticTriggerConfig = AcousticTriggerConfig(),
     val batteryProtectionEnabled: Boolean = true,
     val minBatteryThresholdPercent: Int = DEFAULT_BATTERY_THRESHOLD_PERCENT,
-    val githubUpdateRepo: String = "",
-    val updateCheckFrequency: UpdateCheckFrequency = UpdateCheckFrequency.WEEKLY,
+    val githubUpdateRepo: String = "sougatawolf/PocketBioacoustics",
+    val updateCheckFrequency: UpdateCheckFrequency = UpdateCheckFrequency.THREE_DAYS,
     val skippedUpdateTag: String = "",
     val lastUpdateCheckMs: Long = 0L
 ) {
@@ -189,11 +189,8 @@ class RecorderPreferencesRepository(private val context: Context) {
 
         val effectiveContinuousNoGap = continuousNoGap || triggerConfig.enabled
 
-        val defaultGithubRepo = context.getString(R.string.default_github_update_repo).trim()
-        val githubUpdateRepo = prefs[Keys.GITHUB_UPDATE_REPO] ?: defaultGithubRepo
-        val updateCheckFrequency = prefs[Keys.UPDATE_CHECK_FREQUENCY]?.let { name ->
-            UpdateCheckFrequency.entries.firstOrNull { it.name == name }
-        } ?: UpdateCheckFrequency.WEEKLY
+        val githubUpdateRepo = context.getString(R.string.default_github_update_repo).trim()
+        val updateCheckFrequency = UpdateCheckFrequency.THREE_DAYS
         val skippedUpdateTag = prefs[Keys.SKIPPED_UPDATE_TAG] ?: ""
         val lastUpdateCheckMs = prefs[Keys.LAST_UPDATE_CHECK_MS] ?: 0L
 

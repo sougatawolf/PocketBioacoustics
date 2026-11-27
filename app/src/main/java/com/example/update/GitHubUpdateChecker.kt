@@ -14,6 +14,7 @@ enum class UpdateCheckFrequency(
     val shortLabel: String,
     val intervalMs: Long
 ) {
+    THREE_DAYS("Every 3 days", "Every 3 days", 3L * 24L * 60L * 60L * 1000L),
     WEEKLY("Once a week (7 days)", "Weekly 7d", 7L * 24L * 60L * 60L * 1000L),
     DAILY("Once a day (24h)", "Daily", 24L * 60L * 60L * 1000L),
     TWELVE_HOURS("Every 12 hours", "12h", 12L * 60L * 60L * 1000L),

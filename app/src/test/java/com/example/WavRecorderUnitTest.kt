@@ -876,18 +876,18 @@ class WavRecorderUnitTest {
     }
 
     @Test
-    fun gitHubReleaseParser_normalizesReposComparesSemVerAndGatesWeeklyCooldown() {
+    fun gitHubReleaseParser_normalizesReposComparesSemVerAndGatesThreeDayCooldown() {
         assertEquals(
-            "drsougata/PocketBioacoustics",
-            GitHubReleaseParser.normalizeRepoSlug("https://github.com/drsougata/PocketBioacoustics.git")
+            "sougatawolf/PocketBioacoustics",
+            GitHubReleaseParser.normalizeRepoSlug("https://github.com/sougatawolf/PocketBioacoustics.git")
         )
         assertEquals(
-            "drsougata/PocketBioacoustics",
-            GitHubReleaseParser.normalizeRepoSlug("github.com/drsougata/PocketBioacoustics/releases")
+            "sougatawolf/PocketBioacoustics",
+            GitHubReleaseParser.normalizeRepoSlug("github.com/sougatawolf/PocketBioacoustics/releases")
         )
         assertEquals(
-            "drsougata/PocketBioacoustics",
-            GitHubReleaseParser.normalizeRepoSlug("  drsougata/PocketBioacoustics  ")
+            "sougatawolf/PocketBioacoustics",
+            GitHubReleaseParser.normalizeRepoSlug("  sougatawolf/PocketBioacoustics  ")
         )
         assertEquals(null, GitHubReleaseParser.normalizeRepoSlug("not-a-repo"))
 
@@ -897,11 +897,11 @@ class WavRecorderUnitTest {
         assertFalse(GitHubReleaseParser.isRemoteVersionNewer("1.0", "v1.0"))
         assertFalse(GitHubReleaseParser.isRemoteVersionNewer("1.0.0", "v1.0.0-beta"))
 
-        val sevenDaysMs = UpdateCheckFrequency.WEEKLY.intervalMs
+        val threeDaysMs = UpdateCheckFrequency.THREE_DAYS.intervalMs
         val now = 1_750_000_000_000L
-        assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.WEEKLY, 0L, now, force = false))
-        assertFalse(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.WEEKLY, now - sevenDaysMs + 1000L, now, force = false))
-        assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.WEEKLY, now - sevenDaysMs, now, force = false))
+        assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.THREE_DAYS, 0L, now, force = false))
+        assertFalse(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.THREE_DAYS, now - threeDaysMs + 1000L, now, force = false))
+        assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.THREE_DAYS, now - threeDaysMs, now, force = false))
         assertFalse(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.MANUAL_ONLY, 0L, now, force = false))
         assertTrue(GitHubReleaseParser.shouldCheckNow(UpdateCheckFrequency.MANUAL_ONLY, now, now, force = true))
     }

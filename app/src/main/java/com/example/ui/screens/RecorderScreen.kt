@@ -113,10 +113,10 @@ import com.example.data.RecorderSettings
 import com.example.data.RecordingSchedule
 import com.example.ui.UpdateUiState
 import com.example.ui.components.AcousticTriggerCard
-import com.example.ui.components.AppUpdatesCard
 import com.example.ui.components.AudioVisualizerPanel
 import com.example.ui.components.BatteryIconGraphic
 import com.example.ui.components.BatterySettingsCard
+import com.example.ui.components.CheckForUpdateButton
 import com.example.ui.components.CompactTelemetryStorageStrip
 import com.example.ui.components.IntervalSettingsCard
 import com.example.ui.components.LowCutFilterButton
@@ -124,7 +124,6 @@ import com.example.ui.components.LowCutFilterCard
 import com.example.ui.components.RecordingDurationCard
 import com.example.ui.components.SampleRateSelectorCard
 import com.example.ui.components.ScheduleSettingsCard
-import com.example.update.UpdateCheckFrequency
 import com.example.util.Formatters
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -158,8 +157,6 @@ fun RecorderScreen(
     onBatteryProtectionChanged: (Boolean) -> Unit,
     onBatteryThresholdChanged: (Int) -> Unit,
     updateUiState: UpdateUiState,
-    onSaveGithubRepo: (String) -> Unit,
-    onUpdateFrequencyChanged: (UpdateCheckFrequency) -> Unit,
     onCheckUpdatesNow: () -> Unit,
     onOpenUpdateDialog: () -> Unit,
     onOpenArchive: () -> Unit,
@@ -562,15 +559,10 @@ fun RecorderScreen(
                 onQualitySelected = onQualityChanged
             )
 
-            // GitHub Releases APK Update Checker Card
-            AppUpdatesCard(
-                githubRepo = settings.githubUpdateRepo,
-                frequency = settings.updateCheckFrequency,
-                lastCheckMs = settings.lastUpdateCheckMs,
+            // Single compact "Check for Update" action button (automatic check runs every 3 days on launch when online & idle)
+            CheckForUpdateButton(
                 updateUiState = updateUiState,
                 isRecordingActive = !isIdle,
-                onSaveRepo = onSaveGithubRepo,
-                onFrequencySelected = onUpdateFrequencyChanged,
                 onCheckNow = onCheckUpdatesNow,
                 onViewUpdatePopup = onOpenUpdateDialog
             )

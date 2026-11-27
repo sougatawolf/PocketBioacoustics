@@ -247,8 +247,6 @@ fun WaveLoopAppShell(
                                 onBatteryProtectionChanged = viewModel::setBatteryProtectionEnabled,
                                 onBatteryThresholdChanged = viewModel::setMinBatteryThresholdPercent,
                                 updateUiState = updateUiState,
-                                onSaveGithubRepo = viewModel::saveGithubUpdateRepo,
-                                onUpdateFrequencyChanged = viewModel::setUpdateCheckFrequency,
                                 onCheckUpdatesNow = viewModel::checkForUpdatesManual,
                                 onOpenUpdateDialog = viewModel::openUpdateDialog,
                                 onOpenArchive = { navigateTo(ROUTE_ARCHIVE) }

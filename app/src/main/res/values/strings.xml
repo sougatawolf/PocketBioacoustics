@@ -18,8 +18,8 @@
     <string name="notification_channel_desc">Shows active recording timer and segment controls</string>
     <string name="empty_archive_title">No Recordings Yet</string>
     <string name="empty_archive_body">Start a continuous session in Studio. Segments auto-save as lossless FLAC, ALAC, WAV, or AIFF files at your chosen interval.</string>
-    <string name="default_github_update_repo" translatable="false"></string>
-    <string name="update_card_title">App Updates (GitHub)</string>
+    <string name="default_github_update_repo" translatable="false">sougatawolf/PocketBioacoustics</string>
+    <string name="check_for_update">Check for Update</string>
     <string name="update_dialog_yes">Yes, Update</string>
     <string name="update_dialog_later">Later</string>
     <string name="update_dialog_skip">Skip Version</string>

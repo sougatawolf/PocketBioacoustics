@@ -36,7 +36,6 @@ import com.example.data.RecordingRepository
 import com.example.data.RecordingSchedule
 import com.example.service.RecordingService
 import com.example.update.AppUpdateInfo
-import com.example.update.GitHubReleaseParser
 import com.example.update.GitHubUpdateChecker
 import com.example.update.UpdateCheckFrequency
 import com.example.update.UpdateCheckResult
@@ -723,18 +722,14 @@ class RecorderViewModel(
         if (hasRunLaunchUpdateCheck) return
         hasRunLaunchUpdateCheck = true
         if (isSessionActiveForUpdate()) return
-        if (initialSettings.githubUpdateRepo.isBlank() ||
-            initialSettings.updateCheckFrequency == UpdateCheckFrequency.MANUAL_ONLY
-        ) {
-            return
-        }
+        if (initialSettings.githubUpdateRepo.isBlank()) return
 
         when (
             val result = updateChecker.checkLatestRelease(
                 repoInput = initialSettings.githubUpdateRepo,
                 installedVersion = BuildConfig.VERSION_NAME,
                 skippedTag = initialSettings.skippedUpdateTag,
-                frequency = initialSettings.updateCheckFrequency,
+                frequency = UpdateCheckFrequency.THREE_DAYS,
                 lastCheckMs = initialSettings.lastUpdateCheckMs,
                 force = false
             )
@@ -770,13 +765,6 @@ class RecorderViewModel(
         }
         viewModelScope.launch {
             val currentSettings = preferencesRepository.settingsFlow.first()
-            if (currentSettings.githubUpdateRepo.isBlank()) {
-                _updateUiState.value = _updateUiState.value.copy(
-                    lastError = "Enter your GitHub repository (owner/repo) first.",
-                    statusMessage = null
-                )
-                return@launch
-            }
             _updateUiState.value = _updateUiState.value.copy(
                 isChecking = true,
                 lastError = null,
@@ -787,7 +775,7 @@ class RecorderViewModel(
                     repoInput = currentSettings.githubUpdateRepo,
                     installedVersion = BuildConfig.VERSION_NAME,
                     skippedTag = currentSettings.skippedUpdateTag,
-                    frequency = currentSettings.updateCheckFrequency,
+                    frequency = UpdateCheckFrequency.THREE_DAYS,
                     lastCheckMs = currentSettings.lastUpdateCheckMs,
                     force = true
                 )
@@ -806,29 +794,29 @@ class RecorderViewModel(
 
                 is UpdateCheckResult.UpToDate -> {
                     preferencesRepository.setLastUpdateCheckMs(result.checkedAtMs)
+                    val msg = "You're on the latest version (v${result.currentVersion})."
                     _updateUiState.value = _updateUiState.value.copy(
                         isChecking = false,
                         availableUpdate = null,
                         showUpdateDialog = false,
-                        statusMessage = "You're on the latest version (v${result.currentVersion}).",
+                        statusMessage = msg,
                         lastError = null
                     )
+                    _transientMessage.value = msg
                 }
 
                 UpdateCheckResult.NoInternet -> {
+                    val msg = "No active internet connection."
                     _updateUiState.value = _updateUiState.value.copy(
                         isChecking = false,
-                        lastError = "No active internet connection.",
+                        lastError = msg,
                         statusMessage = null
                     )
+                    _transientMessage.value = msg
                 }
 
                 UpdateCheckResult.NotConfigured -> {
-                    _updateUiState.value = _updateUiState.value.copy(
-                        isChecking = false,
-                        lastError = "Enter a valid GitHub repository like owner/repo.",
-                        statusMessage = null
-                    )
+                    _updateUiState.value = _updateUiState.value.copy(isChecking = false)
                 }
 
                 UpdateCheckResult.CooldownNotElapsed -> {
@@ -841,42 +829,9 @@ class RecorderViewModel(
                         lastError = result.message,
                         statusMessage = null
                     )
+                    _transientMessage.value = result.message
                 }
             }
-        }
-    }
-
-    fun saveGithubUpdateRepo(rawRepo: String) {
-        viewModelScope.launch {
-            if (rawRepo.isBlank()) {
-                preferencesRepository.setGithubUpdateRepo("")
-                _updateUiState.value = _updateUiState.value.copy(
-                    availableUpdate = null,
-                    showUpdateDialog = false,
-                    statusMessage = "GitHub update repository cleared.",
-                    lastError = null
-                )
-                return@launch
-            }
-            val normalized = GitHubReleaseParser.normalizeRepoSlug(rawRepo)
-            if (normalized == null) {
-                _updateUiState.value = _updateUiState.value.copy(
-                    lastError = "Use owner/repo or a full https://github.com/owner/repo URL.",
-                    statusMessage = null
-                )
-                return@launch
-            }
-            preferencesRepository.setGithubUpdateRepo(normalized)
-            _updateUiState.value = _updateUiState.value.copy(
-                lastError = null,
-                statusMessage = "Saved GitHub repo: $normalized"
-            )
-        }
-    }
-
-    fun setUpdateCheckFrequency(frequency: UpdateCheckFrequency) {
-        viewModelScope.launch {
-            preferencesRepository.setUpdateCheckFrequency(frequency)
         }
     }
 
