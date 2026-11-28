@@ -16,18 +16,6 @@ jobs:
       - name: Checkout repository code
         uses: actions/checkout@v4
 
-      - name: Extract Version from AI Studio (package.json)
-        id: get_version
-        run: |
-          if [ -f "package.json" ]; then
-            APP_VERSION=$(jq -r '.version' package.json)
-          else
-            # Fallback to the Git tag (without 'v') if package.json is not in root
-            APP_VERSION=${GITHUB_REF#refs/tags/v}
-          fi
-          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
-          echo "Detected AI Studio Version: $APP_VERSION"
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -41,11 +29,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug -PversionName="${{ steps.get_version.outputs.app_version }}" -PversionCode=${{ github.run_number }}
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          ./gradlew assembleDebug -PversionName="$TAG_VERSION" -PversionCode=${{ github.run_number }}
 
       - name: Create GitHub Release and Upload APK
         uses: softprops/action-gh-release@v2
         with:
-          name: v${{ steps.get_version.outputs.app_version }}
+          name: ${{ github.ref_name }}
           generate_release_notes: true
           files: app/build/outputs/apk/debug/app-debug.apk
