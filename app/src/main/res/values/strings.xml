@@ -23,4 +23,10 @@
     <string name="update_dialog_yes">Yes, Update</string>
     <string name="update_dialog_later">Later</string>
     <string name="update_dialog_skip">Skip Version</string>
+    <string name="author_note_title">Author\'s Note</string>
+    <string name="author_note_back">Back</string>
+    <string name="author_note_p1">After nearly 10 years of working in bioacoustics, one thing became clear to me: bioacoustic monitoring is still not accessible to many people. Dedicated passive acoustic recorders can be expensive, creating a barrier for students, enthusiasts, and researchers who want to get started.</string>
+    <string name="author_note_p2">PocketBioacoustics was built to change that. It turns an Android phone into a bioacoustic recorder with features such as acoustic triggering, pre-recording capture, autonomous scheduling, lossless recording, GPS tagging, and live spectrograms, making wildlife sound recording more accessible to everyone.</string>
+    <string name="author_note_p3">My hope is simple: make background wildlife recording easy, affordable, and accessible so that more people can listen to nature, collect data, and engage with the fascinating world of bioacoustics.</string>
+    <string name="author_note_closing">🌿 Happy soundscape exploring. Every sound tells a story. Start listening. 🎙️</string>
 </resources>

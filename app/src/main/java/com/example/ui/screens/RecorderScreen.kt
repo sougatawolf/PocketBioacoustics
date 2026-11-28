@@ -116,7 +116,6 @@ import com.example.ui.components.AcousticTriggerCard
 import com.example.ui.components.AudioVisualizerPanel
 import com.example.ui.components.BatteryIconGraphic
 import com.example.ui.components.BatterySettingsCard
-import com.example.ui.components.CheckForUpdateButton
 import com.example.ui.components.CompactTelemetryStorageStrip
 import com.example.ui.components.IntervalSettingsCard
 import com.example.ui.components.LowCutFilterButton
@@ -157,7 +156,7 @@ fun RecorderScreen(
     onBatteryProtectionChanged: (Boolean) -> Unit,
     onBatteryThresholdChanged: (Int) -> Unit,
     updateUiState: UpdateUiState,
-    onCheckUpdatesNow: () -> Unit,
+    onOpenAuthorNote: () -> Unit,
     onOpenUpdateDialog: () -> Unit,
     onOpenArchive: () -> Unit,
     modifier: Modifier = Modifier
@@ -307,7 +306,8 @@ fun RecorderScreen(
             // App Brand & Live Status Pill
             StudioBrandHeader(
                 recordingState = recordingState,
-                batteryUsageEstimate = batteryUsageEstimate
+                batteryUsageEstimate = batteryUsageEstimate,
+                onOpenAuthorNote = onOpenAuthorNote
             )
 
             val pendingUpdate = updateUiState.availableUpdate
@@ -559,14 +559,6 @@ fun RecorderScreen(
                 onQualitySelected = onQualityChanged
             )
 
-            // Single compact "Check for Update" action button (automatic check runs every 3 days on launch when online & idle)
-            CheckForUpdateButton(
-                updateUiState = updateUiState,
-                isRecordingActive = !isIdle,
-                onCheckNow = onCheckUpdatesNow,
-                onViewUpdatePopup = onOpenUpdateDialog
-            )
-
             // Latest Completed Segment Toast Strip
             AnimatedVisibility(visible = recordingState.lastCompletedSegmentName != null) {
                 recordingState.lastCompletedSegmentName?.let { fileName ->
@@ -633,7 +625,8 @@ fun RecorderScreen(
 @Composable
 private fun StudioBrandHeader(
     recordingState: RecordingState,
-    batteryUsageEstimate: BatteryUsageEstimate
+    batteryUsageEstimate: BatteryUsageEstimate,
+    onOpenAuthorNote: () -> Unit
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "rec_pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -654,13 +647,19 @@ private fun StudioBrandHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .minimumInteractiveComponentSize()
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(onClick = onOpenAuthorNote)
+                .padding(horizontal = 4.dp, vertical = 3.dp)
+                .testTag("author_note_trigger"),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Image(
                 painter = painterResource(R.drawable.ic_pocket_bioacoustics_icon),
-                contentDescription = stringResource(R.string.app_name),
+                contentDescription = "Open Author's Note",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(42.dp)

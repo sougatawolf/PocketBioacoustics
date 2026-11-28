@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.waveloop.k7m2xp"
     minSdk = 24
     targetSdk = 36
-    versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 1
-    versionName = project.findProperty("versionName")?.toString() ?: "1.0"
+    versionCode = 2
+    versionName = "1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

@@ -32,7 +32,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -46,6 +49,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.R
 import com.example.audio.RecordingStatus
+import com.example.ui.components.AuthorNoteLeftDialog
 import com.example.ui.components.UpdateAvailableDialog
 import com.example.ui.screens.ArchiveScreen
 import com.example.ui.screens.RecorderScreen
@@ -72,6 +76,8 @@ fun WaveLoopAppShell(
     val playbackInspectorState by viewModel.playbackInspectorState.collectAsStateWithLifecycle()
     val transientMessage by viewModel.transientMessage.collectAsStateWithLifecycle()
     val updateUiState by viewModel.updateUiState.collectAsStateWithLifecycle()
+
+    var showAuthorNoteDialog by rememberSaveable { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -247,7 +253,7 @@ fun WaveLoopAppShell(
                                 onBatteryProtectionChanged = viewModel::setBatteryProtectionEnabled,
                                 onBatteryThresholdChanged = viewModel::setMinBatteryThresholdPercent,
                                 updateUiState = updateUiState,
-                                onCheckUpdatesNow = viewModel::checkForUpdatesManual,
+                                onOpenAuthorNote = { showAuthorNoteDialog = true },
                                 onOpenUpdateDialog = viewModel::openUpdateDialog,
                                 onOpenArchive = { navigateTo(ROUTE_ARCHIVE) }
                             )
@@ -276,6 +282,18 @@ fun WaveLoopAppShell(
                 }
             }
         }
+
+        AuthorNoteLeftDialog(
+            visible = showAuthorNoteDialog,
+            updateUiState = updateUiState,
+            isRecordingActive = recordingState.status != RecordingStatus.IDLE,
+            onDismiss = { showAuthorNoteDialog = false },
+            onCheckUpdatesNow = viewModel::checkForUpdatesManual,
+            onViewUpdatePopup = {
+                showAuthorNoteDialog = false
+                viewModel.openUpdateDialog()
+            }
+        )
 
         val availableUpdate = updateUiState.availableUpdate
         if (updateUiState.showUpdateDialog &&
